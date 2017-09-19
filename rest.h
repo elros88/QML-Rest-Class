@@ -5,6 +5,10 @@
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
+#include <QUrlQuery>
+#include <QUrl>
+#include <QHttpMultiPart>
+#include <QFile>
 #include <QEventLoop>
 #include <QJsonObject>
 #include <QJsonDocument>
@@ -16,25 +20,29 @@
 class Rest : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(bool replyStatus READ getReplyStatus WRITE setReplyStatus NOTIFY replyStatusChanged)
-    Q_PROPERTY(QString replyString READ getReplyString WRITE setReplyString NOTIFY replyStringChanged)
-    Q_PROPERTY(int counter READ getCounter WRITE setCounter NOTIFY counterChanged)
+    Q_PROPERTY(bool estatusRespuesta READ getEstatusRespuesta WRITE setEstatusRespuesta NOTIFY cambioEstatusRespuesta)
+    Q_PROPERTY(QString respuesta READ getRespuesta WRITE setRespuesta NOTIFY cambioRespuesta)
+    Q_PROPERTY(int contador READ getContador WRITE setContador NOTIFY cambioContador)
 
 private:
 
     //**** ATTRIBUTES *******
-    QEventLoop events;
-    QNetworkAccessManager* connectionManager;
-    QNetworkRequest request;
-    QNetworkReply* reply;
-    QString replyString;
+    QEventLoop eventos;
+    QNetworkAccessManager* manejadorConexion;
+    QNetworkRequest peticion;
+    QNetworkReply* respuestaBruta;
+    QString respuesta;
+    QString llave;
+    QUrl url;
+    QUrlQuery valorPeticion;
     QJsonObject error;
-    QJsonDocument replyJson;
-    QJsonObject jsonObject;
-    QJsonArray jsonArray;
-    int counter;
+    QJsonDocument documentoJson;
+    QJsonObject objectoJson;
+    QJsonArray arregloJson;
+    QHttpMultiPart* multiparte;
+    int contador;
 
-    bool replyStatus;
+    bool estatusRespuesta;
     //***** END ATTRIBUTES *****
 
 
@@ -44,45 +52,59 @@ public:
 
     explicit Rest(QObject *parent = 0);
 
-    Q_INVOKABLE void init(QString url, QString token);
+    Q_INVOKABLE void iniciar(QString url);
+    Q_INVOKABLE void iniciarCabecera(QString campo, QString valor);
     Q_INVOKABLE void post (QByteArray data);
     Q_INVOKABLE void get ();
     Q_INVOKABLE void put ();
-    Q_INVOKABLE bool validateReply();
-
+    Q_INVOKABLE bool validarRespuesta();
+    Q_INVOKABLE void agregarAUrl(QString valor);
     //***** GETERS
-    Q_INVOKABLE QString getError();
-    Q_INVOKABLE QJsonObject getJsonObject();
-    Q_INVOKABLE QJsonArray getJsonArray();
+    Q_INVOKABLE QString getMensajeError();
+    Q_INVOKABLE QJsonObject getObjetoJson();
+    Q_INVOKABLE QJsonArray getCadenaJson();
 
-    bool getReplyStatus();
+    bool getEstatusRespuesta();
 
     //***** END GETTERS
 
     //***** SETERS
-    Q_INVOKABLE void setReplyStatus(bool status);
+    Q_INVOKABLE void setEstatusRespuesta(bool estatus);
     //***** END SETTERS
 
     ~Rest();
     //***** END METHODS ***********
 
 
-    QString getReplyString() const;
-    void setReplyString(const QString &value);
+    QString getRespuesta() const;
+    void setRespuesta(const QString &value);
 
-    int getCounter() const;
-    void setCounter(int value);
+    int getContador() const;
+    void setContador(int value);
+
+
+    Q_INVOKABLE QUrl getUrl() const;
+    Q_INVOKABLE void setUrl(const QString &value);
+
+    Q_INVOKABLE QJsonObject getError() const;
+    void setError(const QJsonObject &value);
+
+    Q_INVOKABLE void post();
+    Q_INVOKABLE void postArchivo();
+
+    Q_INVOKABLE void iniciarCabeceraString(QString campo, QString valor);
+    Q_INVOKABLE bool crearCabeceraMultiparte(QString url);
 
 
 signals:
 
     //void sslErrors(QNetworkReply*,QList<QSslError>);
-    void replyStatusChanged();
-    void replyStringChanged();
-    void counterChanged();
+    void cambioEstatusRespuesta();
+    void cambioRespuesta();
+    void cambioContador();
 
 public slots:
-   void replyFinished();
+   void respuestaRecibida();
 
 };
 

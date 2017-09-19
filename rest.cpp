@@ -2,9 +2,10 @@
 
 Rest::Rest(QObject *parent) : QObject(parent)
 {
-    connectionManager = new  QNetworkAccessManager(this);
+    manejadorConexion = new  QNetworkAccessManager(this);
 
-    replyStatus = false;
+    estatusRespuesta = false;
+    llave = "1234567890";
 }
 
 Rest::~Rest()
@@ -13,127 +14,160 @@ Rest::~Rest()
 }
 
 //***** INITIALIZATE REQUEST PARAMETERS AND URL
-void Rest::init(QString url, QString token)
+void Rest::iniciar(QString url)
 {
-     replyStatus = false;
+     estatusRespuesta = false;
 
-     request.setUrl(QUrl(url));
-     request.setHeader(request.ContentTypeHeader,"application/json");
-
-     if(!token.isEmpty())
-     {
-         QString auth = "Bearer " + token;
-         request.setRawHeader(QByteArray("Authorization"), QByteArray(auth.toStdString().c_str()));
-     }
-
+     peticion.setUrl(QUrl(url));
+     peticion.setHeader(peticion.ContentTypeHeader,"application/json");
+     peticion.setRawHeader(QByteArray("X-BAASBOX-APPCODE"), QByteArray(llave.toStdString().c_str()));
 }
+
+void Rest::iniciarCabecera(QString campo, QString valor)
+{
+    peticion.setRawHeader(QByteArray(campo.toStdString().c_str()), QByteArray(valor.toStdString().c_str()));
+}
+
+void Rest::iniciarCabeceraString(QString campo, QString valor)
+{
+    peticion.setRawHeader(QByteArray(campo.toStdString().c_str()), valor.toStdString().c_str());
+}
+
 
 
 //***** POST-REQUEST OPERATIONS *****
 //       (in order of calling)
-void Rest::replyFinished()
+void Rest::respuestaRecibida()
 { 
     if(sender())
     {
-        qDebug() << "Finalizo";
-        reply = qobject_cast<QNetworkReply*>(sender());
-        setReplyStatus(true);
-    }
-    else
-    {
-        qDebug() << "No hay sender";
+        respuestaBruta = qobject_cast<QNetworkReply*>(sender());
+        setEstatusRespuesta(true);
     }
 }
 
-bool Rest::validateReply()
+bool Rest::validarRespuesta()
 {
-    qDebug()<<"Error del Endpoint: "<<reply->error();
+    qDebug()<<"Error del Endpoint: "<<respuestaBruta->error();
 
-    if(reply->error() == QNetworkReply::NoError)
+    QList<QByteArray> headerList = respuestaBruta->rawHeaderList();
+    foreach(QByteArray head, headerList) {
+        qDebug() << head << ":" << respuestaBruta->rawHeader(head);
+    }
+    if(respuestaBruta->error() == QNetworkReply::NoError)
     {
-        replyString = (QString)reply->readAll();
-        replyJson = QJsonDocument::fromJson(replyString.toUtf8());
-        qDebug()<<"Respuesta del Endpoint: "<<replyString.toStdString().c_str();
-        qDebug()<<"JSON: "<<replyJson.toJson();
-        if(!replyJson.isArray())
+        respuesta = (QString)respuestaBruta->readAll();
+        qDebug()<<respuesta;
+        documentoJson = QJsonDocument::fromJson(respuesta.toUtf8());
+//        qDebug()<<"Respuesta del Endpoint: "<<replyString.toStdString().c_str();
+//        qDebug()<<"JSON: "<<replyJson.toJson();
+        if(!documentoJson.isArray())
         {
-            jsonObject = replyJson.object();
-            reply->deleteLater();
+            qDebug() << "OBJETO";
+            objectoJson = documentoJson.object();
+            respuestaBruta->deleteLater();
             return true;
         }
-        if(replyJson.isArray())
+        if(documentoJson.isArray())
         {
-            jsonArray = replyJson.array();
-            reply->deleteLater();
+            qDebug() << "ARREGLO";
+            arregloJson = documentoJson.array();
+            respuestaBruta->deleteLater();
             return true;
         }
     }
     else
     {
-        replyString = reply->readAll();
-        replyJson = QJsonDocument::fromJson(replyString.toUtf8());
-        error = replyJson.object();
-        QByteArray errorBody = QJsonDocument::fromJson(replyString.toUtf8()).toJson();
+        respuesta = respuestaBruta->readAll();
+        documentoJson = QJsonDocument::fromJson(respuesta.toUtf8());
+        error = documentoJson.object();
+        QByteArray errorBody = QJsonDocument::fromJson(respuesta.toUtf8()).toJson();
 //        qDebug()<<"Error en Respuesta: "<<replyString.toStdString().c_str();
 //        qDebug()<<"Error json: "<<replyJson.toJson();
 //        qDebug()<<errorBody.toStdString().c_str();
 
-        reply->deleteLater();
+        respuestaBruta->deleteLater();
 
     }
     return false;
 }
 
-void Rest::setReplyStatus(bool status)
+void Rest::agregarAUrl(QString valor)
 {
-    if(replyStatus != status)
+    //valorPeticion.addQueryItem(valor);
+
+}
+
+void Rest::setEstatusRespuesta(bool status)
+{
+    if(estatusRespuesta != status)
     {
-        replyStatus = status;
-        emit replyStatusChanged();
-        replyStatus = !status;
+        estatusRespuesta = status;
+        emit cambioEstatusRespuesta();
+        estatusRespuesta = !status;
     }
 
 }
 
-bool Rest::getReplyStatus()
+bool Rest::getEstatusRespuesta()
 {
-    return replyStatus;
+    return estatusRespuesta;
 }
 
-QString Rest::getError()
+QString Rest::getMensajeError()
 {
-    return replyString;
+    return respuesta;
 }
 
-QJsonArray Rest::getJsonArray() {
+QJsonArray Rest::getCadenaJson() {
 
-    return jsonArray;
+    return arregloJson;
 }
 
-QJsonObject Rest::getJsonObject()
+QJsonObject Rest::getObjetoJson()
 {
-    return jsonObject;
+    return objectoJson;
 }
 
-QString Rest::getReplyString() const
+QString Rest::getRespuesta() const
 {
-    return replyString;
+    return respuesta;
 }
 
-void Rest::setReplyString(const QString &value)
+void Rest::setRespuesta(const QString &value)
 {
-    replyString = value;
+    respuesta = value;
 }
 
-int Rest::getCounter() const
+int Rest::getContador() const
 {
-    return counter;
+    return contador;
 }
 
-void Rest::setCounter(int value)
+void Rest::setContador(int value)
 {
-    counter = value;
-    emit counterChanged();
+    contador = value;
+    emit cambioContador();
+}
+
+QUrl Rest::getUrl() const
+{
+    return url;
+}
+
+void Rest::setUrl(const QString &value)
+{
+    url.setUrl(value);
+}
+
+QJsonObject Rest::getError() const
+{
+    return error;
+}
+
+void Rest::setError(const QJsonObject &value)
+{
+    error = value;
 }
 
 //***** END POST-REQUEST OPERATION *****
@@ -141,22 +175,76 @@ void Rest::setCounter(int value)
 //***** REQUEST METHODS: POST, GET, PUT *****
 void Rest::post(QByteArray data)
 {
-    reply = connectionManager->post(request, data);
-    connect(reply, SIGNAL(finished()), this, SLOT(replyFinished()));
+    respuestaBruta = manejadorConexion->post(peticion, data);
+    qDebug()<<"Enviando Post";
+
+    connect(respuestaBruta, SIGNAL(finished()), this, SLOT(respuestaRecibida()));
+}
+
+void Rest::post()
+{
+    QByteArray data;
+
+    QJsonObject json;
+    json[""] = "";
+    QJsonDocument documento(json);
+    data.append(documento.toJson(QJsonDocument::Compact));
+    qDebug()<<"Enviando Post";
+    respuestaBruta = manejadorConexion->post(peticion, data);
+//    qDebug()<<data.toStdString();
+    connect(respuestaBruta, SIGNAL(finished()), this, SLOT(respuestaRecibida()));
+}
+
+void Rest::postArchivo()
+{
+    respuestaBruta = manejadorConexion->post(peticion, multiparte);
+    multiparte->setParent(respuestaBruta);
+    qDebug()<<"Enviando Post";
+
+    connect(respuestaBruta, SIGNAL(finished()), this, SLOT(respuestaRecibida()));
+    //multiparte->deleteLater();
 }
 
 void Rest::get()
 {
-    reply = connectionManager->get(request);
-    connect(reply, SIGNAL(finished()), this, SLOT(replyFinished()));
+    respuestaBruta = manejadorConexion->get(peticion);
+    connect(respuestaBruta, SIGNAL(finished()), this, SLOT(respuestaRecibida()));
 }
 
 void Rest::put()
 {
     QByteArray data;
     data.append("{}");
-    reply = connectionManager->put(request, data);
-    connect(reply, SIGNAL(finished()), this, SLOT(replyFinished()));
+    respuestaBruta = manejadorConexion->put(peticion, data);
+    connect(respuestaBruta, SIGNAL(finished()), this, SLOT(respuestaRecibida()));
 }
 
 //***** END REQUEST METHODS *****
+
+
+bool Rest::crearCabeceraMultiparte(QString url)
+{
+    multiparte = new QHttpMultiPart(QHttpMultiPart::FormDataType);
+
+    QHttpPart parteArchivo;
+
+    //parteArchivo.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("image/jpeg"));
+    parteArchivo.setHeader(QNetworkRequest::ContentDispositionHeader,
+                      QVariant("form-data; name=\"file\""));
+
+    QFile* imagen = new QFile(url);
+
+    if(imagen->open(QIODevice::ReadOnly))
+    {
+        parteArchivo.setBodyDevice(imagen);
+        imagen->setParent(multiparte);
+        multiparte->append(parteArchivo);
+        return true;
+    }
+    else
+    {
+        qDebug()<< imagen->errorString();
+    }
+
+    return false;
+}
